@@ -1,0 +1,14 @@
+
+# 调用 process 的参数
+data_path: data/Criteo_1M_with_nans.csv
+# 调用 load_data 的参数
+batch_size: 256
+num_workers: 4
+# 模型训练的参数
+lr: 5e-4
+weight_decay: 5e-3
+epochs: 20
+early_stop_patience: 3
+
+model_name: lr
+

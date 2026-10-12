@@ -1,4 +1,5 @@
-
+import argparse
+import yaml
 import torch
 import torch.nn as nn
 
@@ -6,27 +7,75 @@ from network.models import LR, FM, Wide_Deep, DeepFM
 from preprocess.data_process import process, load_data
 from utils.train import train
 
-# 采用 Kaggle 上的 Criteo_1M_with_nans.csv 数据集
-data_path = "data/Criteo_1M_with_nans.csv"
-batch_size = 256
-num_workers = 4 # 使用子进程数
-dim = 8 # Embedding 层的维度
-lr = 5e-4
-weight_decay = 5e-3
-epochs = 20
-early_stop_patience = 3
+def build_model(name, params):
+    name = name.lower()
+    if name == "lr":
+        return LR(**params)
+    elif name == "fm":
+        return FM(**params)
+    elif name == "wide_deep":
+        return Wide_Deep(**params)
+    elif name == "deepfm":
+        return DeepFM(**params)
+    else:
+        raise ValueError(f"Unknown model: {name}")
 
 if __name__ == "__main__":
 
+    # 命令行解析器初始化
+    parser = argparse.ArgumentParser() # 实例化 ArgumentParser 接收命令行传来的参数
+    # 加入命令行可以解析的参数名称
+    parser.add_argument("--config", type=str, required=True) # required=True 表示必须传入 config 参数
+    parser.add_argument("--dim", type=int)
+    parser.add_argument("--lr", type=float)
+    parser.add_argument("--epochs", type=int)
+    parser.add_argument("--weight_decay", type=float)
+    parser.add_argument("--early_stop_patience", type=int)
+    args = parser.parse_args() # 读取命令行参数，传给 args
+
+    # 处理 --config
+    with open(args.config, 'r', encoding="utf-8") as f:
+        # 使用 safe_load 解析 yaml 文件，yaml 里的参数转换成字典存在 config 里
+        config = yaml.safe_load(f)
+
+    # 处理命令行传入的参数，如果传入了相应参数，则覆盖 yaml 里的内容
+    for key in ["dim", "lr", "epochs", "weight_decay", "early_stop_patience"]:
+        value = getattr(args, key)
+        if value is not None:
+            config[key] = value
+
     # 加载数据
-    train_df, valid_df, test_df, all_cat_cols, dense_cols, encoders = process(data_path)
-    train_iter, valid_iter, test_iter = load_data(train_df, valid_df, test_df, all_cat_cols, dense_cols, batch_size, num_workers)
+    train_df, valid_df, test_df, all_cat_cols, dense_cols, encoders = process(config["data_path"])
+    train_iter, valid_iter, test_iter = load_data(train_df, valid_df, test_df, all_cat_cols, dense_cols, config["batch_size"], config["num_workers"])
     emb_size_of_every_col = [len(encoders[col]) + 1 for col in all_cat_cols] # 每个特征列特征值的最大值（这一列 Embedding 的大小）
 
-    '''# LR 定义
-    model = LR(emb_size_of_every_col, len(all_cat_cols), len(dense_cols))
+    # 模型初始化准备
+    name = config["model_name"]
+    if name == "lr":
+        params = { # lr 的参数
+            "emb_size_of_every_col": emb_size_of_every_col,
+            "cat_feature_cols": len(all_cat_cols),
+            "dense_feature_cols": len(dense_cols)
+        }
+    elif name == "fm":
+        params = { # fm 的参数
+            "emb_size_of_every_col": emb_size_of_every_col,
+            "dense_feature_cols": len(dense_cols),
+            "dim": config["dim"]
+        }
+    else:
+        params = {
+            "emb_size_of_every_col": emb_size_of_every_col,
+            "cat_feature_cols": len(all_cat_cols),
+            "dense_feature_cols": len(dense_cols),
+            "dim": config["dim"]
+        }
+    
+    # 根据 name 和 params 初始化模型
+    model = build_model(name, params)
+    # 损失函数，优化器和调度器
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr = lr, weight_decay = weight_decay)
+    optimizer = torch.optim.AdamW(model.parameters(), lr = config["lr"], weight_decay = config["weight_decay"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
         mode='max',
@@ -35,47 +84,6 @@ if __name__ == "__main__":
         threshold=1e-4,
         min_lr=1e-6
     )
-    train(model, criterion, optimizer, scheduler, epochs, train_iter, valid_iter, test_iter, early_stop_patience)'''
-
-    # FM 定义
-    model = FM(emb_size_of_every_col, len(dense_cols), dim)
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr = lr, weight_decay = weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='max',
-        factor=0.5,
-        patience=1,
-        threshold=1e-4,
-        min_lr=1e-6
-    )
-    train(model, criterion, optimizer, scheduler, epochs, train_iter, valid_iter, test_iter, early_stop_patience)
-
-    '''# Wide&Deep 定义
-    model = Wide_Deep(emb_size_of_every_col, len(all_cat_cols), len(dense_cols), dim)
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr = lr, weight_decay = weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='max',
-        factor=0.5,
-        patience=1,
-        threshold=1e-4,
-        min_lr=1e-6
-    )
-    train(model, criterion, optimizer, scheduler, epochs, train_iter, valid_iter, test_iter, early_stop_patience)'''
-
-    '''# DeepFM 定义
-    model = DeepFM(emb_size_of_every_col, len(all_cat_cols), len(dense_cols), dim=dim)
-    criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr = lr, weight_decay = weight_decay)
-    # 学习率调度器
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode='max',          # 监控指标越大越好（AUC）
-        factor=0.5,          # lr 每次乘以 0.5
-        patience=1,          # 1 个 epoch 没提升就衰减
-        threshold=1e-4,      # 小于 threshold 不算提升
-        min_lr=1e-6          # 学习率最小值
-    )
-    train(model, criterion, optimizer, scheduler, epochs, train_iter, valid_iter, test_iter, early_stop_patience)'''
+    
+    # 训练模型
+    train(model, criterion, optimizer, scheduler, config["epochs"], train_iter, valid_iter, test_iter, config["early_stop_patience"])

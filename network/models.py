@@ -96,6 +96,7 @@ class Wide_Deep(nn.Module):
         self.embeddings = nn.ModuleList([nn.Embedding(size, dim, max_norm=1) for size in emb_size_of_every_col])
         self.linear = nn.Linear(cat_feature_cols * dim + dense_feature_cols, 1)
         self.mlp = self._mlp(cat_feature_cols * dim + dense_feature_cols)
+        self.dropout = nn.Dropout(0.3)
 
     def _mlp(self, dim):
         return nn.Sequential(
@@ -130,6 +131,7 @@ class Wide_Deep(nn.Module):
             feature = self.embeddings[i](X_cat[:, i]) # [batch_size, 1, dim] 第 i 列特征的 Embedding 向量
             cat_features.append(feature)
         cat_features = torch.stack(cat_features, dim=1) # [batch_size, cat_feature_cols, dim]
+        cat_features = self.dropout(cat_features)
         # 特征拼接
         flatten_cat_features = cat_features.reshape(cat_features.shape[0], -1) # [batch_size, cat_feature_cols * dim]
         cat_dense_features = torch.cat([flatten_cat_features, X_dense], dim=1) # [batch_size, cat_feature_cols * dim + dense_feature_cols]

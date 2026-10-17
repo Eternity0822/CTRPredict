@@ -33,8 +33,16 @@ class FM(nn.Module):
         super(FM, self).__init__()
         # cat_feature_cols 为类别特征列的列数，包括分桶后的整数类别特征
         # dense_feature_cols 为稠密特征列数
+
         self.two_square_embs = nn.ModuleList([nn.Embedding(size, dim, max_norm=1) for size in emb_size_of_every_col]) # 二阶交叉特征的 Embedding
+        # 二阶 Embedding 初始化为小随机值
+        for emb in self.two_square_embs:
+            nn.init.normal_(emb.weight, mean=0, std=0.01)
+        # 一阶 Embedding 初始化为 0
         self.one_square_embs = nn.ModuleList([nn.Embedding(size, 1) for size in emb_size_of_every_col]) # 一阶特征的 Embedding
+        for emb in self.one_square_embs:
+            nn.init.zeros_(emb.weight)
+            
         self.w0 = nn.Parameter(torch.zeros(1)) # 全局偏置项
         self.dense_linear = nn.Linear(dense_feature_cols, 1) # 稠密特征经过线性层处理
 

@@ -152,7 +152,12 @@ class DeepFM(nn.Module):
 
         # FM 的参数
         self.two_square_embs = nn.ModuleList([nn.Embedding(size, dim, max_norm=1) for size in emb_size_of_every_col]) # 这部分参数与 Deep 部分的类别特征共享
+        for emb in self.two_square_embs:
+            nn.init.normal_(emb.weight, mean=0, std=0.01)
         self.one_square_embs = nn.ModuleList([nn.Embedding(size, 1) for size in emb_size_of_every_col])
+        for emb in self.one_square_embs:
+            nn.init.zeros_(emb.weight)
+
         self.w0 = nn.Parameter(torch.zeros(1))
         self.dense_linear = nn.Linear(dense_feature_cols, 1)
 

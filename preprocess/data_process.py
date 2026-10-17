@@ -71,7 +71,6 @@ def process(path):
     # 将类别特征的哈希值映射为整数索引（每列的含义不同，映射也不同）
     encoders = {} # 保存每列的映射
     for col in all_cat_cols:
-        # 训练集：建立映射
         unique_vals = train_df[col].unique() # 获取不重复的值
         mapping = {v: i for i, v in enumerate(unique_vals)} # 建立字典映射
         encoders[col] = mapping

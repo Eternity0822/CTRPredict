@@ -42,9 +42,10 @@ class FM(nn.Module):
         self.one_square_embs = nn.ModuleList([nn.Embedding(size, 1) for size in emb_size_of_every_col]) # 一阶特征的 Embedding
         for emb in self.one_square_embs:
             nn.init.zeros_(emb.weight)
-            
+
         self.w0 = nn.Parameter(torch.zeros(1)) # 全局偏置项
         self.dense_linear = nn.Linear(dense_feature_cols, 1) # 稠密特征经过线性层处理
+        self.dropout = nn.Dropout(0.2) # 对 Embedding 做 Dropout
 
     def FMCross(self, features_embs):
         # features_embs: [batch_size, cat_feature_cols, dim]
@@ -65,6 +66,7 @@ class FM(nn.Module):
             feature = self.two_square_embs[i](X_cat[:, i]) # [batch_size, 1, dim] 第 i 列特征的 Embedding 向量
             two_square_features.append(feature)
         two_square_features = torch.stack(two_square_features, dim=1) # [batch_size, cat_feature_cols, dim]
+        two_square_features = self.dropout(two_square_features)
 
         # 取出一阶项特征向量
         num_cols = X_cat.shape[1]
@@ -74,6 +76,7 @@ class FM(nn.Module):
             feature = self.one_square_embs[i](X_cat[:, i]) # [batch_size, 1, 1] 第 i 列特征的 Embedding 向量
             one_square_features.append(feature)
         one_square_features = torch.squeeze(torch.stack(one_square_features, dim=1), dim=-1) # [batch_size, cat_feature_cols]
+        one_square_features = self.dropout(one_square_features)
 
         # ---------- 稠密特征处理（直接作为一阶项加入模型）----------
         dense = torch.squeeze(self.dense_linear(X_dense), dim=-1) # [batch_size]

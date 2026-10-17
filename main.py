@@ -38,7 +38,7 @@ if __name__ == "__main__":
         # 使用 safe_load 解析 yaml 文件，yaml 里的参数转换成字典存在 config 里
         config = yaml.safe_load(f)
 
-    # 处理命令行传入的参数，如果传入了相应参数，则覆盖 yaml 里的内容
+    # 处理命令行传入的参数，如果在命令行中传入了相应参数，则覆盖 config 里的内容（yaml 里的内容）
     for key in ["dim", "lr", "epochs", "weight_decay", "early_stop_patience"]:
         value = getattr(args, key)
         if value is not None:
@@ -64,7 +64,7 @@ if __name__ == "__main__":
             "dim": config["dim"]
         }
     else:
-        params = {
+        params = { # wide_deep 和 deepfm 的参数
             "emb_size_of_every_col": emb_size_of_every_col,
             "cat_feature_cols": len(all_cat_cols),
             "dense_feature_cols": len(dense_cols),
@@ -72,7 +72,13 @@ if __name__ == "__main__":
         }
     
     # 根据 name 和 params 初始化模型
-    model = build_model(name, params)
+    try:
+        model = build_model(name, params)
+    except ValueError as ve:
+        print(f"Model input erroe: {str(ve)}")
+    except Exception as e:
+        print(f"Unknown error occurred when initializing model：{str(e)}")
+        
     # 损失函数，优化器和调度器
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr = config["lr"], weight_decay = config["weight_decay"])
@@ -80,7 +86,7 @@ if __name__ == "__main__":
         optimizer,
         mode='max',
         factor=0.5,
-        patience=1,
+        patience=2,
         threshold=1e-4,
         min_lr=1e-6
     )

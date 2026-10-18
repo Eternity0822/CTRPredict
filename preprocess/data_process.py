@@ -50,8 +50,8 @@ def process(path):
         std = train_df[col + '_log'].std()
         if std == 0: std = 1.0 
         # 保存 mean 和 std
-        log_mean[col] = mean
-        log_std[col] = std
+        log_mean[col + '_log'] = mean
+        log_std[col + '_log'] = std
 
         # 用训练集 mean 和 std 做标准化，防止数据泄露
         train_df[col + '_log'] = (train_df[col + '_log'] - mean) / std

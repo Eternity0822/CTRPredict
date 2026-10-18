@@ -1,5 +1,6 @@
 import argparse
 import yaml
+import joblib
 import torch
 import torch.nn as nn
 
@@ -45,7 +46,8 @@ if __name__ == "__main__":
             config[key] = value
 
     # 加载数据
-    train_df, valid_df, test_df, all_cat_cols, dense_cols, encoders = process(config["data_path"])
+    train_df, valid_df, test_df, all_cat_cols, dense_cols, encoders, artifact = process(config["data_path"])
+    joblib.dump(artifact, "save/artifact.pkl") # 将统计量保存起来，推理用
     train_iter, valid_iter, test_iter = load_data(train_df, valid_df, test_df, all_cat_cols, dense_cols, config["batch_size"], config["num_workers"])
     emb_size_of_every_col = [len(encoders[col]) + 1 for col in all_cat_cols] # 每个特征列特征值的最大值（这一列 Embedding 的大小）
 

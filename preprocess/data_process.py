@@ -28,13 +28,16 @@ def process(path):
     valid_df, test_df = train_test_split(tmp_df, test_size=0.5, random_state=42, stratify=tmp_df[label_col])
 
     # ----------------- 填充整数特征列的 nan -----------------
+    int_median = {} # 保存每列中位数
     for col in int_cols: # 整数特征用中位数来填充缺失值
         median = train_df[col].median() # 只用训练集计算中位数
+        int_median[col] = median
         train_df[col] = train_df[col].fillna(median).astype(int)
         valid_df[col] = valid_df[col].fillna(median).astype(int)
         test_df[col] = test_df[col].fillna(median).astype(int)
     
     # ----------------- 对整数列取 log1p 并将所有整数列标准化 -----------------
+    log_mean, log_std = {}, {} # 保存每列的 mean 以及 std
     for col in int_cols:
         # 对数变换 log1p: log(1 + x)
         train_df[col + '_log'] = np.log1p(train_df[col].clip(lower=0).astype(np.float32))
@@ -46,6 +49,9 @@ def process(path):
         mean = train_df[col + '_log'].mean()
         std = train_df[col + '_log'].std()
         if std == 0: std = 1.0 
+        # 保存 mean 和 std
+        log_mean[col] = mean
+        log_std[col] = std
 
         # 用训练集 mean 和 std 做标准化，防止数据泄露
         train_df[col + '_log'] = (train_df[col + '_log'] - mean) / std
@@ -80,8 +86,21 @@ def process(path):
         unknown_idx = len(mapping)
         test_df[col] = test_df[col].map(mapping).fillna(unknown_idx).astype(int)
         valid_df[col] = valid_df[col].map(mapping).fillna(unknown_idx).astype(int)
+
+    artifact = { # 记录所有统计量和特征列名
+        "int_median": int_median,
+        "log_mean": log_mean,
+        "log_std": log_std,
+        "encoders": encoders,
+        "int_cols": int_cols,
+        "cat_cols": cat_cols,
+        "bin_cols": bin_cols,
+        "all_cat_cols": all_cat_cols,
+        "dense_cols": dense_cols,
+        "label_col": label_col,
+    }
         
-    return train_df, valid_df, test_df, all_cat_cols, dense_cols, encoders
+    return train_df, valid_df, test_df, all_cat_cols, dense_cols, encoders, artifact
 
 def load_data(train_df, valid_df, test_df, all_cat_cols, dense_cols, batch_size, num_workers = 4):
     # num_workers: 开启的子进程数

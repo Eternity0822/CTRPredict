@@ -83,7 +83,7 @@ pip install -r requirements.txt
 
 ### 2. 准备数据
 
-将 Criteo 1M 数据集（含缺失值的版本）放到 `data/Criteo_1M_with_nans.csv`。数据需包含以下列：
+在项目根目录下创建一个 data 目录，将 Criteo 1M 数据集（含缺失值的版本）放到 `data/Criteo_1M_with_nans.csv`。数据需包含以下列：
 
 | 列类型 | 列名 | 数量 |
 |---|---|---|
